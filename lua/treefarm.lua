@@ -28,7 +28,7 @@ end
 
 -- moves the turtle forward by amount blocks
 local function move_forward(amount)
-	for i = 1, amount, 1 do
+	for _ = 1, amount, 1 do
 		turtle.forward()
 	end
 end
@@ -42,6 +42,16 @@ local function plant_sapling()
 	turtle.place()
 end
 
+-- digs in all four directions around the turtle
+local function dig_around()
+	for _ = 1, 4, 1 do
+		if turtle.detect() then
+			turtle.dig()
+		end
+		turtle.turnRight()
+	end
+end
+
 -- fells the tree in front of the turtle and returns it to its starting position
 local function fell_tree()
 	turtle.dig()
@@ -52,9 +62,14 @@ local function fell_tree()
 		turtle.digUp()
 		turtle.up()
 		times_moved_up = times_moved_up + 1
+		dig_around()
 	end
 
 	for _ = 1, times_moved_up, 1 do
+		-- just in case a new tree growing blocks the turtle from coming back down
+		if turtle.detectDown() then
+			turtle.digDown()
+		end
 		turtle.down()
 	end
 
@@ -63,20 +78,31 @@ end
 
 -- if there is no block in front of the turtle then plant a sapling
 -- if there is a log then start felling the tree it belongs to
+-- and plant a new sapling afterwards
 local function handle_front()
 	local ok, item_data = turtle.inspect()
 	if not ok then
 		plant_sapling()
-	elseif not string.find(item_data.name, "log") then
+	elseif string.find(item_data.name, "log") then
 		fell_tree()
+		plant_sapling()
 	end
 end
 
+-- move to the next (right) row from the turtle's perspective
 local function move_to_right_row()
 	turtle.forward()
 	turtle.turnRight()
 	move_forward(3)
 	turtle.turnRight()
+end
+
+-- move to the next (left) row from the turtle's perspective
+local function move_to_left_row()
+	turtle.forward()
+	turtle.turnLeft()
+	move_forward(3)
+	turtle.turnLeft()
 end
 
 -- farm one row of trees
@@ -99,6 +125,28 @@ local function farm_double_row()
 	farm_single_row()
 	move_to_right_row()
 	farm_single_row()
+end
+
+-- returns the turtle to the start (in front of the chest)
+-- the distance to the start is 3 (for the first row) + 6 for every subsequent double row
+local function return_to_chest()
+	local distance_to_start = 3 + (PARAMS.double_rows - 1) * 6
+	turtle.forward()
+	turtle.turnRight()
+	move_forward(distance_to_start)
+	turtle.turnLeft()
+end
+
+-- iterates over all slots aside from the first one (which is for saplings)
+-- drops the items into the chest the turtle is facing
+local function unload_items()
+	for slot = 2, 16, 1 do
+		if turtle.getItemCount(slot) > 0 then
+			turtle.select(slot)
+			turtle.drop()
+		end
+	end
+	turtle.select(2)
 end
 
 -------------------------
@@ -138,7 +186,7 @@ if not (item_detail and string.find(item_detail.name, "sapling")) then
 	return
 end
 
--- read and store the run parameters
+-- read and store the run parameter
 
 write("Number of (double) rows to plant: ")
 PARAMS.double_rows = tonumber(read())
@@ -148,9 +196,13 @@ PARAMS.row_length = tonumber(read())
 
 -- iterate until terminated
 while true do
-	farm_double_row()
-	-- TODO: move to next double row
-	-- TODO: checks between iterations
-	-- TODO: handle end of double rows and return to start
-	-- TODO: unload to chest
+	for i = 1, PARAMS.double_rows, 1 do
+		farm_double_row()
+		if i < PARAMS.double_rows then
+			move_to_left_row()
+		end
+	end
+	return_to_chest()
+	unload_items()
+	turn_around()
 end
