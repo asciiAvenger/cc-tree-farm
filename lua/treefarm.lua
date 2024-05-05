@@ -35,6 +35,7 @@ end
 
 -- plants a sapling in front of the turtle
 local function plant_sapling()
+	-- TODO: keep at least one sapling in the first slot
 	-- select the first slot (saplings) if not already selected
 	if turtle.getSelectedSlot() ~= 1 then
 		turtle.select(1)
@@ -146,6 +147,7 @@ local function unload_items()
 			turtle.drop()
 		end
 	end
+	-- select slot 2 so newly felled blocks land in the correct slot
 	turtle.select(2)
 end
 
